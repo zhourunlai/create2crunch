@@ -146,7 +146,7 @@ pub fn cpu(config: Config) -> Result<(), Box<dyn Error>> {
     let file = output_file();
 
     // create object for computing rewards (relative rarity) for a given address
-    let rewards = Reward::new();
+    // let rewards = Reward::new();
 
     // begin searching for addresses
     loop {
@@ -184,31 +184,39 @@ pub fn cpu(config: Config) -> Result<(), Box<dyn Error>> {
                 // get the address that results from the hash
                 let address = <&Address>::try_from(&res[12..]).unwrap();
 
-                // count total and leading zero bytes
-                let mut total = 0;
-                let mut leading = 21;
-                for (i, &b) in address.iter().enumerate() {
-                    if b == 0 {
-                        total += 1;
-                    } else if leading == 21 {
-                        // set leading on finding non-zero byte
-                        leading = i;
-                    }
+                // https://blog.uniswap.org/uniswap-v4-address-mining-challenge
+                if !address.to_string().starts_with("0x00000004444") {
+                    return;
                 }
-
-                // only proceed if there are at least three zero bytes
-                if total < 3 {
+                if !address.to_string().ends_with("4444") {
                     return;
                 }
 
-                // look up the reward amount
-                let key = leading * 20 + total;
-                let reward_amount = rewards.get(&key);
+                // // count total and leading zero bytes
+                // let mut total = 0;
+                // let mut leading = 21;
+                // for (i, &b) in address.iter().enumerate() {
+                //     if b == 0 {
+                //         total += 1;
+                //     } else if leading == 21 {
+                //         // set leading on finding non-zero byte
+                //         leading = i;
+                //     }
+                // }
 
-                // only proceed if an efficient address has been found
-                if reward_amount.is_none() {
-                    return;
-                }
+                // // only proceed if there are at least three zero bytes
+                // if total < 3 {
+                //     return;
+                // }
+
+                // // look up the reward amount
+                // let key = leading * 20 + total;
+                // let reward_amount = rewards.get(&key);
+
+                // // only proceed if an efficient address has been found
+                // if reward_amount.is_none() {
+                //     return;
+                // }
 
                 // get the full salt used to create the address
                 let header_hex_string = hex::encode(header);
@@ -217,8 +225,7 @@ pub fn cpu(config: Config) -> Result<(), Box<dyn Error>> {
 
                 // display the salt and the address.
                 let output = format!(
-                    "{full_salt} => {address} => {}",
-                    reward_amount.unwrap_or("0")
+                    "{full_salt} => {address}"
                 );
                 println!("{output}");
 
@@ -266,7 +273,7 @@ pub fn gpu(config: Config) -> ocl::Result<()> {
     let file = output_file();
 
     // create object for computing rewards (relative rarity) for a given address
-    let rewards = Reward::new();
+    // let rewards = Reward::new();
 
     // track how many addresses have been found and information about them
     let mut found: u64 = 0;
@@ -507,30 +514,37 @@ pub fn gpu(config: Config) -> ocl::Result<()> {
             // get the address that results from the hash
             let address = <&Address>::try_from(&res[12..]).unwrap();
 
-            // count total and leading zero bytes
-            let mut total = 0;
-            let mut leading = 0;
-            for (i, &b) in address.iter().enumerate() {
-                if b == 0 {
-                    total += 1;
-                } else if leading == 0 {
-                    // set leading on finding non-zero byte
-                    leading = i;
-                }
+            // https://blog.uniswap.org/uniswap-v4-address-mining-challenge
+            if !address.to_string().starts_with("0x00000004444") {
+                continue;
+            }
+            if !address.to_string().ends_with("4444") {
+                continue;
             }
 
-            let key = leading * 20 + total;
-            let reward = rewards.get(&key).unwrap_or("0");
+            // // count total and leading zero bytes
+            // let mut total = 0;
+            // let mut leading = 0;
+            // for (i, &b) in address.iter().enumerate() {
+            //     if b == 0 {
+            //         total += 1;
+            //     } else if leading == 0 {
+            //         // set leading on finding non-zero byte
+            //         leading = i;
+            //     }
+            // }
+
+            // let key = leading * 20 + total;
+            // let reward = rewards.get(&key).unwrap_or("0");
             let output = format!(
-                "0x{}{}{} => {} => {}",
+                "0x{}{}{} => {}",
                 hex::encode(config.calling_address),
                 hex::encode(salt),
                 hex::encode(solution),
                 address,
-                reward,
             );
 
-            let show = format!("{output} ({leading} / {total})");
+            let show = format!("{output}");
             found_list.push(show.to_string());
 
             file.lock_exclusive().expect("Couldn't lock file.");
